@@ -159,6 +159,8 @@ class DLLEXPORT SimulationStatus : public SimulationInfo
 
     bool switchToNextStep();
 
+    bool switchToUncheckedNextStep();
+
     /**
       Returns the current time step of the simulation
 

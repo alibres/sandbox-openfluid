@@ -45,40 +45,59 @@
   with the terms contained in the written agreement between You and INRA.
 */
 
-
 /**
-  @file
-  @brief Implements ...
+  \file TimeLine.hpp
+  \brief Header of ...
 
-  @author Jean-Christophe FABRE <fabrejc@supagro.inra.fr>
+  \author Jean-Christophe FABRE <fabrejc@supagro.inra.fr>
  */
 
 
+#ifndef __RUNSTEPSCHEDULER_HPP__
+#define __RUNSTEPSCHEDULER_HPP__
+
+
+#include <openfluid/dllexport.hpp>
+#include <openfluid/machine/TimePoint.hpp>
 #include <openfluid/machine/ModelItemInstance.hpp>
+
+
+// =====================================================================
+// =====================================================================
 
 
 namespace openfluid { namespace machine {
 
 
-SignatureItemInstance::SignatureItemInstance() :
-  Filename(""), SDKCompatible(false), Signature(NULL),
-  ItemType(openfluid::base::ModelItemDescriptor::NoModelItemType)
+class DLLEXPORT RunStepScheduler
 {
+  private:
 
-}
+    std::list<TimePoint> m_TimePointList;
+
+    const openfluid::base::SimulationStatus* mp_SimStatus;
+
+    unsigned int m_Duration;
+
+    void appendSimFuncToTimePoint(openfluid::core::RelativeTime_t RelativeTime, openfluid::base::PluggableFunction* Function);
 
 
-// =====================================================================
-// =====================================================================
+  public:
 
+    RunStepScheduler(const std::list<ModelItemInstance*>& FuncsList, const openfluid::base::SimulationStatus* SimStatus);
 
-ModelItemInstance::ModelItemInstance()
-  : SignatureItemInstance(),
-    Function(NULL)
-{
+    ~RunStepScheduler();
 
-}
+    inline bool hasTimePointToProcess() const
+    { return !m_TimePointList.empty(); };
+
+    void processNextTimePoint();
+
+};
+
 
 } } //namespaces
 
 
+
+#endif /* __TIMELINE_HPP__ */

@@ -47,122 +47,42 @@
 
 
 /**
-  @file
-  @brief implements ...
+  \file TimeLine.cpp
+  \brief Implements ...
 
-  @author Jean-Christophe FABRE <fabrejc@supagro.inra.fr>
+  \author Jean-Christophe FABRE <fabrejc@supagro.inra.fr>
 */
 
 
 
-#include <openfluid/base/SimStatus.hpp>
+#include <openfluid/machine/RunStepScheduler.hpp>
+#include <openfluid/debug.hpp>
 
 
-namespace openfluid { namespace base {
+namespace openfluid { namespace machine {
 
 
-SimulationInfo::SimulationInfo(openfluid::core::DateTime StartTime,
-                               openfluid::core::DateTime EndTime,
-                               int TimeStep)
+// =====================================================================
+// =====================================================================
+
+
+RunStepScheduler::RunStepScheduler(const std::list<ModelItemInstance*>& FuncsList, const openfluid::base::SimulationStatus* SimStatus) :
+  mp_SimStatus(SimStatus)
 
 {
+  m_Duration = mp_SimStatus->getTimeStep() * mp_SimStatus->getStepsCount();
 
-
-
-  m_StartTime = StartTime;
-  m_EndTime = EndTime;
-
-  m_TimeStep = TimeStep;
-
-  m_StepsCount = computeTimeStepsCount(StartTime,EndTime,TimeStep);
-
-}
-
-
-// =====================================================================
-// =====================================================================
-
-
-SimulationInfo::~SimulationInfo()
-{
-
-}
-
-
-// =====================================================================
-// =====================================================================
-
-
-int SimulationInfo::computeTimeStepsCount(const openfluid::core::DateTime& StartTime,
-                                          const openfluid::core::DateTime& EndTime,
-                                          const int& TimeStep)
-{
-  int StepsCount;
-
-  openfluid::core::rawtime_t DeltaTime;
-
-  DeltaTime = EndTime.diffInSeconds(StartTime);
-  StepsCount = int(DeltaTime / TimeStep);
-  if ((DeltaTime % TimeStep) != 0) StepsCount++;
-
-  return StepsCount;
-
-}
-
-// =====================================================================
-// =====================================================================
-
-
-SimulationStatus::SimulationStatus(openfluid::core::DateTime StartTime,
-                                   openfluid::core::DateTime EndTime,
-                                   int TimeStep)
-                : SimulationInfo(StartTime,EndTime,TimeStep)
-
-{
-
-  m_CurrentStep = 0;
-  m_CurrentTime = m_StartTime;
-
-  m_IsFirstStep = true;
-
-  m_IsLastStep = false;
-  if (m_StepsCount == 1) m_IsLastStep = true;
-
-
-}
-
-
-// =====================================================================
-// =====================================================================
-
-
-SimulationStatus::~SimulationStatus()
-{
-
-}
-
-
-// =====================================================================
-// =====================================================================
-
-
-bool SimulationStatus::switchToNextStep()
-{
-  openfluid::core::DateTime NextTime(m_CurrentTime + m_TimeStep);
-
-  if (NextTime < m_EndTime)
+  if(!FuncsList.empty())
   {
-    m_CurrentStep++;
+    std::list<ModelItemInstance*>::const_iterator MIIit;
 
-    m_CurrentTime = NextTime;
+    m_TimePointList.push_back(TimePoint(0,mp_SimStatus));
 
-    m_IsFirstStep = (m_CurrentStep == 0);
-    m_IsLastStep = (m_CurrentStep == (m_StepsCount-1));
-
-    return true;
+    for (MIIit=FuncsList.begin();MIIit!=FuncsList.end();++MIIit)
+    {
+      m_TimePointList.back().appendSimFunc((*MIIit)->Function);
+    }
   }
-  else return false;
-
 }
 
 
@@ -170,21 +90,81 @@ bool SimulationStatus::switchToNextStep()
 // =====================================================================
 
 
-bool SimulationStatus::switchToUncheckedNextStep()
+RunStepScheduler::~RunStepScheduler()
 {
-  openfluid::core::DateTime NextTime(m_CurrentTime + m_TimeStep);
-
-  m_CurrentStep++;
-
-  m_CurrentTime = NextTime;
-
-  m_IsFirstStep = (m_CurrentStep == 0);
-  m_IsLastStep = (m_CurrentStep >= (m_StepsCount-1));
-
-  return true;
 
 }
 
 
-} } // namespace openfluid::base
+// =====================================================================
+// =====================================================================
+
+
+void RunStepScheduler::appendSimFuncToTimePoint(openfluid::core::RelativeTime_t RelativeTime,
+                                        openfluid::base::PluggableFunction* Function)
+{
+
+  if (RelativeTime <= mp_SimStatus->getSeconds())
+    throw openfluid::base::OFException("OpenFLUID framework","TimeLine::appendSimFuncToTimePoint","Cannot append simulation function before or on current time point");
+
+  if (RelativeTime > m_Duration)
+    return;
+
+
+  if (RelativeTime > m_TimePointList.back().getRelativeTime())
+  {
+    m_TimePointList.push_back(TimePoint(RelativeTime,mp_SimStatus));
+    m_TimePointList.back().appendSimFunc(Function);
+  }
+  else
+  {
+    bool TmpInserted = false;
+    std::list<TimePoint>::iterator TPit = m_TimePointList.begin();
+
+    while (TPit != m_TimePointList.end() && !TmpInserted)
+    {
+      if ((*TPit).getRelativeTime() == RelativeTime)
+      {
+        (*TPit).appendSimFunc(Function);
+        TmpInserted = true;
+      }
+      else if ((*TPit).getRelativeTime() > RelativeTime)
+      {
+        TimePoint TmpPoint(RelativeTime, mp_SimStatus);
+        TmpPoint.appendSimFunc(Function);
+        m_TimePointList.insert(TPit,TmpPoint);
+        TmpInserted = true;
+      }
+      else
+      {
+        ++TPit;
+      }
+    }
+
+  }
+}
+
+
+// =====================================================================
+// =====================================================================
+
+
+void RunStepScheduler::processNextTimePoint()
+{
+  while (m_TimePointList.front().hasSimFuncToProcess())
+  {
+    openfluid::base::PluggableFunction* NexSimFunc = m_TimePointList.front().getNextSimFunc();
+    m_TimePointList.front().processNextSimFunc();
+    appendSimFuncToTimePoint(mp_SimStatus->getSeconds()+mp_SimStatus->getTimeStep(),
+                             NexSimFunc);
+  }
+  m_TimePointList.pop_front();
+}
+
+
+
+} } //namespaces
+
+
+
 

@@ -98,6 +98,7 @@ typedef std::string VariableName_t;
 */
 typedef unsigned int TimeStep_t;
 
+typedef unsigned int RelativeTime_t;
 
 typedef std::pair<UnitClass_t,UnitID_t> UnitClassID_t;
 

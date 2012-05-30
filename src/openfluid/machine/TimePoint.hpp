@@ -45,40 +45,64 @@
   with the terms contained in the written agreement between You and INRA.
 */
 
-
 /**
-  @file
-  @brief Implements ...
+  \file TimePoint.hpp
+  \brief Header of ...
 
-  @author Jean-Christophe FABRE <fabrejc@supagro.inra.fr>
+  \author Jean-Christophe FABRE <fabrejc@supagro.inra.fr>
  */
 
 
-#include <openfluid/machine/ModelItemInstance.hpp>
+#ifndef __TIMEPOINT_HPP__
+#define __TIMEPOINT_HPP__
+
+
+#include <openfluid/dllexport.hpp>
+#include <openfluid/base/PlugFunction.hpp>
+
+
+// =====================================================================
+// =====================================================================
 
 
 namespace openfluid { namespace machine {
 
 
-SignatureItemInstance::SignatureItemInstance() :
-  Filename(""), SDKCompatible(false), Signature(NULL),
-  ItemType(openfluid::base::ModelItemDescriptor::NoModelItemType)
+class DLLEXPORT TimePoint
 {
+  private:
+    std::list<openfluid::base::PluggableFunction*> m_SimFuncsPtrList;
 
-}
+    openfluid::core::RelativeTime_t m_RelativeTime;
+
+    const openfluid::base::SimulationStatus* mp_SimStatus;
 
 
-// =====================================================================
-// =====================================================================
+  public:
+
+    TimePoint(openfluid::core::RelativeTime_t RelativeTime, const openfluid::base::SimulationStatus* SimStatus);
+
+    ~TimePoint();
+
+    void appendSimFunc(openfluid::base::PluggableFunction* Function);
+
+    inline bool hasSimFuncToProcess() const
+    { return !m_SimFuncsPtrList.empty(); };
+
+    void processNextSimFunc();
+
+    inline openfluid::base::PluggableFunction* getNextSimFunc() const
+    { return m_SimFuncsPtrList.front(); };
+
+    inline openfluid::core::RelativeTime_t getRelativeTime() const
+    { return m_RelativeTime; };
 
 
-ModelItemInstance::ModelItemInstance()
-  : SignatureItemInstance(),
-    Function(NULL)
-{
+};
 
-}
 
 } } //namespaces
 
 
+
+#endif /* __TIMEPOINT_HPP__ */

@@ -47,43 +47,25 @@
 
 
 /**
-  @file
-  @brief implements ...
+  \file TimePoint.cpp
+  \brief Implements ...
 
-  @author Jean-Christophe FABRE <fabrejc@supagro.inra.fr>
+  \author Jean-Christophe FABRE <fabrejc@supagro.inra.fr>
 */
 
 
+#include <openfluid/machine/TimePoint.hpp>
+#include <openfluid/debug.hpp>
 
-#include <openfluid/base/SimStatus.hpp>
-
-
-namespace openfluid { namespace base {
-
-
-SimulationInfo::SimulationInfo(openfluid::core::DateTime StartTime,
-                               openfluid::core::DateTime EndTime,
-                               int TimeStep)
-
-{
-
-
-
-  m_StartTime = StartTime;
-  m_EndTime = EndTime;
-
-  m_TimeStep = TimeStep;
-
-  m_StepsCount = computeTimeStepsCount(StartTime,EndTime,TimeStep);
-
-}
+namespace openfluid { namespace machine {
 
 
 // =====================================================================
 // =====================================================================
 
 
-SimulationInfo::~SimulationInfo()
+TimePoint::TimePoint(openfluid::core::RelativeTime_t RelativeTime, const openfluid::base::SimulationStatus* SimStatus) :
+  m_RelativeTime(RelativeTime), mp_SimStatus(SimStatus)
 {
 
 }
@@ -93,50 +75,7 @@ SimulationInfo::~SimulationInfo()
 // =====================================================================
 
 
-int SimulationInfo::computeTimeStepsCount(const openfluid::core::DateTime& StartTime,
-                                          const openfluid::core::DateTime& EndTime,
-                                          const int& TimeStep)
-{
-  int StepsCount;
-
-  openfluid::core::rawtime_t DeltaTime;
-
-  DeltaTime = EndTime.diffInSeconds(StartTime);
-  StepsCount = int(DeltaTime / TimeStep);
-  if ((DeltaTime % TimeStep) != 0) StepsCount++;
-
-  return StepsCount;
-
-}
-
-// =====================================================================
-// =====================================================================
-
-
-SimulationStatus::SimulationStatus(openfluid::core::DateTime StartTime,
-                                   openfluid::core::DateTime EndTime,
-                                   int TimeStep)
-                : SimulationInfo(StartTime,EndTime,TimeStep)
-
-{
-
-  m_CurrentStep = 0;
-  m_CurrentTime = m_StartTime;
-
-  m_IsFirstStep = true;
-
-  m_IsLastStep = false;
-  if (m_StepsCount == 1) m_IsLastStep = true;
-
-
-}
-
-
-// =====================================================================
-// =====================================================================
-
-
-SimulationStatus::~SimulationStatus()
+TimePoint::~TimePoint()
 {
 
 }
@@ -146,23 +85,9 @@ SimulationStatus::~SimulationStatus()
 // =====================================================================
 
 
-bool SimulationStatus::switchToNextStep()
+void TimePoint::appendSimFunc(openfluid::base::PluggableFunction* Function)
 {
-  openfluid::core::DateTime NextTime(m_CurrentTime + m_TimeStep);
-
-  if (NextTime < m_EndTime)
-  {
-    m_CurrentStep++;
-
-    m_CurrentTime = NextTime;
-
-    m_IsFirstStep = (m_CurrentStep == 0);
-    m_IsLastStep = (m_CurrentStep == (m_StepsCount-1));
-
-    return true;
-  }
-  else return false;
-
+  m_SimFuncsPtrList.push_back(Function);
 }
 
 
@@ -170,21 +95,17 @@ bool SimulationStatus::switchToNextStep()
 // =====================================================================
 
 
-bool SimulationStatus::switchToUncheckedNextStep()
+void TimePoint::processNextSimFunc()
 {
-  openfluid::core::DateTime NextTime(m_CurrentTime + m_TimeStep);
-
-  m_CurrentStep++;
-
-  m_CurrentTime = NextTime;
-
-  m_IsFirstStep = (m_CurrentStep == 0);
-  m_IsLastStep = (m_CurrentStep >= (m_StepsCount-1));
-
-  return true;
-
+  m_SimFuncsPtrList.front()->runStep(mp_SimStatus);
+  m_SimFuncsPtrList.pop_front();
 }
 
 
-} } // namespace openfluid::base
+
+} } //namespaces
+
+
+
+
 
